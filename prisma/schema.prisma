@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Proof {
+  id            String   @id @default(cuid())
+  cid           String   // IPFS CID
+  originalName  String   // Original file name
+  size          Int      // File size in bytes
+  type          String   // File MIME type
+  url           String   // IPFS gateway URL
+  proofHash     String   // Unique proof hash
+  topicId       String?  // Hedera topic ID
+  sequenceNumber Int?    // Hedera sequence number
+  blockchainStatus String // 'success' | 'failed' | 'not_configured'
+  
+  // Metadata
+  title         String?  // Proof title/description
+  category      String?  // Proof category (tree_planting, beach_cleanup, etc.)
+  location      String?  // GPS coordinates or location name
+  tags          String[] // Array of tags
+  
+  // User information
+  userId        String?  // User who submitted the proof
+  ngoId         String?  // Associated NGO (if any)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user          User?    @relation(fields: [userId], references: [id])
+  ngo           NGO?     @relation(fields: [ngoId], references: [id])
+  
+  @@index([userId])
+  @@index([ngoId])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  walletAddress String?  // Hedera wallet address
+  
+  // Profile
+  avatar        String?  // Profile picture URL
+  bio           String?  // User bio
+  
+  // Stats
+  totalProofs   Int      @default(0)
+  totalImpact   Int      @default(0) // Impact score
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  proofs        Proof[]
+  ngoMemberships NGOMember[]
+  
+  @@index([email])
+  @@index([walletAddress])
+}
+
+model NGO {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  logo          String?  // Logo URL
+  website       String?
+  
+  // Contact
+  email         String?
+  phone         String?
+  address       String?
+  
+  // Stats
+  totalProofs   Int      @default(0)
+  totalMembers  Int      @default(0)
+  totalImpact   Int      @default(0)
+  
+  // Verification
+  isVerified    Boolean  @default(false)
+  verifiedAt    DateTime?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  proofs        Proof[]
+  members       NGOMember[]
+  
+  @@index([name])
+  @@index([isVerified])
+}
+
+model NGOMember {
+  id            String   @id @default(cuid())
+  userId        String
+  ngoId         String
+  role          String   @default("member") // member, admin, moderator
+  
+  // Timestamps
+  joinedAt      DateTime @default(now())
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ngo           NGO      @relation(fields: [ngoId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, ngoId])
+  @@index([ngoId])
+  @@index([role])
+}
+
+model Category {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  icon          String?  // Icon name or URL
+  color         String?  // Hex color code
+  
+  // Stats
+  totalProofs   Int      @default(0)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([name])
+}
