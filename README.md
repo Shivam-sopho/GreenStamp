@@ -1,17 +1,96 @@
-# GreenStamp 🌱
+# 🌱 GreenStamp
 
-> **Environmental Action Proof Platform** - Immutably store and verify environmental actions on Hedera Hashgraph
+AI-verified, blockchain-backed eco-action proofs. Submit your environmental actions and get them immutably stored on the Hedera blockchain.
 
-<!-- Vercel deployment test - environment variables check -->
+## System Overview
+GreenStamp is a comprehensive platform that verifies and rewards eco-actions through AI validation, blockchain immutability, and transparent impact tracking.
+## System Architecture
+![GreenStamp System Architecture](public/images/system-architecture.png)
+The system consists of multiple layers:
+- **User Layer**: Mobile and Web applications for proof submission
+- **Backend Layer**: Proof capture engine, AI validation, and API gateway
+- **Blockchain Layer**: Hedera Hashgraph for immutable record keeping
+- **Storage Layer**: IPFS for media storage and PostgreSQL for indexing
+- **Verification Layer**: Public verification portal, NGO and Sponsor dashboards
+## Workflow Diagram
+![GreenStamp Workflow](public/images/workflow-diagram.png)
+The GreenStamp workflow:
+1. **Eco-Actor** captures proof (photo, GPS, timestamp)
+2. **GreenStamp App** sends proof for AI validation
+3. **AI Proof Validator** returns authenticity status
+4. **Hedera Ledger** stores immutable proof hash
+5. **NGO Dashboard** receives verified action and impact record
+6. **Sponsor Dashboard** releases funding based on verified impact
+7. **Eco-Actor** receives GreenStamp badge as reward
+## Getting Started
 
-## 🚀 Features
+First, run the development server:
+ http://localhost:3000](http://localhost:3000) with your browser to see the
 
-- **📤 File Upload**: Upload environmental action proofs (images, videos)
-- **🌐 IPFS Storage**: Decentralized file storage with multiple gateway support
-- **⛓️ Blockchain Integration**: Immutable proof storage on Hedera Hashgraph
-- **🏢 NGO Dashboard**: Organization management and proof tracking
-- **🔍 Proof Verification**: Verify proofs on Hedera HashScan explorer
-- **📊 Analytics**: Track impact and proof statistics
+## Features
+
+### File Upload & IPFS Integration
+- Upload images and videos as proof of your green actions
+- Files are uploaded to IPFS using authenticated services (Pinata/Infura)
+- IPFS CID and gateway URL are displayed after successful upload
+- Fallback to local storage if IPFS is unavailable
+
+### Current Implementation
+- **File Storage**: IPFS via Pinata/Infura with local fallback
+- **File Types**: Images and videos (as specified in the file input)
+- **Security**: Uses IPFS for content addressing and immutability
+- **Authentication**: Supports Pinata JWT or Infura Project ID/API Key
+## IPFS Setup
+To enable authenticated IPFS uploads, create a `.env.local` file in your project root:
+### Option 1: Pinata (Recommended - Free tier available)
+1. Go to [https://pinata.cloud](https://pinata.cloud)
+2. Sign up for a free account
+3. Go to API Keys → Create New Key
+4. Copy your JWT token
+5. Add to `.env.local`:
+   ```
+   PINATA_JWT_TOKEN=your_jwt_token_here
+   ```
+### Option 2: Infura IPFS
+1. Go to [https://infura.io](https://infura.io)
+2. Sign up and create an IPFS project
+3. Get your Project ID and API Key
+4. Add to `.env.local`:
+   ```
+   INFURA_PROJECT_ID=your_project_id
+   INFURA_API_KEY=your_api_key
+   ```
+### Option 3: No Setup (Fallback)
+If no IPFS credentials are provided, the app will automatically fall back to local file storage.
+## Vercel Deployment
+To deploy to Vercel with IPFS functionality:
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Add environment variables in Vercel dashboard:
+   - Go to Project Settings → Environment Variables
+   - Add `PINATA_JWT_TOKEN` or `INFURA_PROJECT_ID` + `INFURA_API_KEY`
+4. Deploy
+
+## Future Enhancements
+
+- **AI Validation**: Implement AI-powered proof verification
+- **Hedera Integration**: Connect to Hedera Hashgraph for immutable records
+- **NGO Dashboard**: Create dashboard for impact tracking
+- **Sponsor Dashboard**: Build funding release mechanisms
+- **Mobile App**: Develop native mobile application
+- **Badge System**: Implement GreenStamp badge rewards
+
+
+
+## 🚀 Features : Tech Side Indepth 
+
+### Core Functionality
+- **📤 Proof Submission**: Upload environmental action proofs with metadata
+- **🔗 IPFS Storage**: Decentralized file storage with fallback to local storage
+- **⛓️ Blockchain Verification**: Immutable proof storage on Hedera Hashgraph
+- **🔍 Proof Verification**: Verify any proof using HashScan explorer
+- **🏢 NGO Dashboard**: Monitor environmental impact and manage organizations
+- **📊 Analytics**: Track impact scores and organization statistics
 
 ### Technical Stack
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
@@ -82,7 +161,7 @@ npm run build
 npm start
 ```
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture : Tech Side
 
 ### Database Schema
 - **Proofs**: Store proof metadata, IPFS CIDs, and blockchain references

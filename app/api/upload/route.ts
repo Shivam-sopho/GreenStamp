@@ -3,7 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import os from "os";
 import { hederaService, ProofRecord } from "@/lib/hedera";
-import { prisma } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 interface UploadResponse {
   success: boolean;
@@ -119,14 +119,20 @@ export async function POST(req: NextRequest) {
       blockchainStatus = 'failed';
     }
 
-    // Store in database
+    // Store in database using Supabase client
     let proofId: string | undefined;
     try {
       // Convert tags to array for PostgreSQL
       const tagsArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
       
-      const dbProof = await prisma.proof.create({
-        data: {
+      // Generate a UUID for the proof ID
+      const proofUuid = crypto.randomUUID();
+      
+      // Insert proof using Supabase
+      const { data: dbProof, error: proofError } = await supabase
+        .from('Proof')
+        .insert([{
+          id: proofUuid,
           cid,
           originalName: file.name,
           size: file.size,
@@ -142,44 +148,111 @@ export async function POST(req: NextRequest) {
           tags: tagsArray,
           userId: userId || null,
           ngoId: ngoId || null,
-        },
-      });
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+
+      if (proofError) {
+        throw new Error(`Proof insert failed: ${proofError.message}`);
+      }
+
       proofId = dbProof.id;
 
       // Update user stats if userId provided
       if (userId) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            totalProofs: { increment: 1 },
-            totalImpact: { increment: 1 }, // Basic impact scoring
-          },
-        });
+        // Get current user stats first
+        const { data: currentUser, error: userFetchError } = await supabase
+          .from('User')
+          .select('totalProofs, totalImpact')
+          .eq('id', userId)
+          .single();
+
+        if (!userFetchError && currentUser) {
+          const { error: userError } = await supabase
+            .from('User')
+            .update({
+              totalProofs: (currentUser.totalProofs || 0) + 1,
+              totalImpact: (currentUser.totalImpact || 0) + 1,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('id', userId);
+
+          if (userError) {
+            console.error('User stats update failed:', userError);
+          }
+        } else {
+          console.warn(`User with ID ${userId} not found, skipping stats update`);
+        }
       }
 
       // Update NGO stats if ngoId provided
       if (ngoId) {
-        await prisma.ngo.update({
-          where: { id: ngoId },
-          data: {
-            totalProofs: { increment: 1 },
-            totalImpact: { increment: 1 },
-          },
-        });
+        // Get current NGO stats first
+        const { data: currentNGO, error: ngoFetchError } = await supabase
+          .from('NGO')
+          .select('totalProofs, totalImpact')
+          .eq('id', ngoId)
+          .single();
+
+        if (!ngoFetchError && currentNGO) {
+          const { error: ngoError } = await supabase
+            .from('NGO')
+            .update({
+              totalProofs: (currentNGO.totalProofs || 0) + 1,
+              totalImpact: (currentNGO.totalImpact || 0) + 1,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('id', ngoId);
+
+          if (ngoError) {
+            console.error('NGO stats update failed:', ngoError);
+          }
+        } else {
+          console.warn(`NGO with ID ${ngoId} not found, skipping stats update`);
+        }
       }
 
       // Update category stats if category provided
       if (category) {
-        await prisma.category.upsert({
-          where: { name: category },
-          update: {
-            totalProofs: { increment: 1 },
-          },
-          create: {
-            name: category,
-            totalProofs: 1,
-          },
-        });
+        // First try to update existing category
+        const { data: existingCategory, error: categoryCheckError } = await supabase
+          .from('Category')
+          .select('id, totalProofs')
+          .eq('name', category)
+          .single();
+
+        if (existingCategory) {
+          // Update existing category
+          const { error: categoryUpdateError } = await supabase
+            .from('Category')
+            .update({
+              totalProofs: (existingCategory.totalProofs || 0) + 1,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('id', existingCategory.id);
+
+          if (categoryUpdateError) {
+            console.error('Category update failed:', categoryUpdateError);
+          }
+        } else {
+          // Create new category
+          const categoryUuid = crypto.randomUUID();
+          const { error: categoryCreateError } = await supabase
+            .from('Category')
+            .insert([{
+              id: categoryUuid,
+              name: category,
+              totalProofs: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }]);
+
+          if (categoryCreateError) {
+            console.error('Category creation failed:', categoryCreateError);
+          }
+        }
       }
 
     } catch (dbError) {

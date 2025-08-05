@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface UploadResult {
@@ -13,12 +13,37 @@ interface UploadResult {
   topicId?: string
   sequenceNumber?: number
   blockchainStatus: 'success' | 'failed' | 'not_configured'
+  proofId?: string
 }
 
 export default function SubmitProof() {
   const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [location, setLocation] = useState("");
+  const [tags, setTags] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Load categories on component mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories/list');
+      const data = await response.json();
+      setCategories(data.categories || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +53,10 @@ export default function SubmitProof() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("title", title);
+      formData.append("category", category === "custom" ? customCategory : category);
+      formData.append("location", location);
+      formData.append("tags", tags);
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -136,6 +165,96 @@ export default function SubmitProof() {
               </p>
             )}
           </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Title/Description
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Brief description of your environmental action"
+              className="w-full p-2 border border-gray-300 rounded text-gray-700 bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded text-gray-700 bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              disabled={loadingCategories}
+            >
+              <option value="">Select a category</option>
+              {loadingCategories ? (
+                <option value="" disabled>Loading categories...</option>
+              ) : (
+                <>
+                  <option value="tree_planting">🌳 Tree Planting</option>
+                  <option value="beach_cleanup">🏖️ Beach Cleanup</option>
+                  <option value="recycling">♻️ Recycling</option>
+                  <option value="energy_conservation">⚡ Energy Conservation</option>
+                  <option value="water_conservation">💧 Water Conservation</option>
+                  <option value="wildlife_protection">🦁 Wildlife Protection</option>
+                  <option value="community_garden">🌱 Community Garden</option>
+                  <option value="plastic_reduction">🚫 Plastic Reduction</option>
+                  <option value="sustainable_transport">🚲 Sustainable Transport</option>
+                  <option value="education">📚 Environmental Education</option>
+                  {categories.length > 0 && (
+                    <optgroup label="Existing Categories">
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <option value="custom">➕ Custom Category</option>
+                </>
+              )}
+            </select>
+            
+            {category === "custom" && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="Enter custom category name"
+                  className="w-full p-2 border border-gray-300 rounded text-gray-700 bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Location
+            </label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="City, Country or GPS coordinates"
+              className="w-full p-2 border border-gray-300 rounded text-gray-700 bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tags (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="environment, community, sustainability"
+              className="w-full p-2 border border-gray-300 rounded text-gray-700 bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
           <button
             type="submit"
             className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -158,6 +277,9 @@ export default function SubmitProof() {
                   <p><strong>Size:</strong> {(uploadResult.size / 1024).toFixed(1)} KB</p>
                   <p><strong>Type:</strong> {uploadResult.type}</p>
                   <p><strong>IPFS CID:</strong> <code className="bg-gray-200 px-1 rounded text-xs break-all text-gray-800">{uploadResult.cid}</code></p>
+                  {uploadResult.proofId && (
+                    <p><strong>Database ID:</strong> <code className="bg-gray-200 px-1 rounded text-xs text-gray-800">{uploadResult.proofId}</code></p>
+                  )}
                   <a
                     href={uploadResult.url}
                     target="_blank"
