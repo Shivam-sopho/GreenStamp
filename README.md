@@ -1,16 +1,17 @@
-# 🌱 GreenStamp
+# GreenStamp 🌱
 
-AI-verified, blockchain-backed eco-action proofs. Submit your environmental actions and get them immutably stored on the Hedera blockchain.
+> **Environmental Action Proof Platform** - Immutably store and verify environmental actions on Hedera Hashgraph
+
+<!-- Vercel deployment test - environment variables check -->
 
 ## 🚀 Features
 
-### Core Functionality
-- **📤 Proof Submission**: Upload environmental action proofs with metadata
-- **🔗 IPFS Storage**: Decentralized file storage with fallback to local storage
-- **⛓️ Blockchain Verification**: Immutable proof storage on Hedera Hashgraph
-- **🔍 Proof Verification**: Verify any proof using HashScan explorer
-- **🏢 NGO Dashboard**: Monitor environmental impact and manage organizations
-- **📊 Analytics**: Track impact scores and organization statistics
+- **📤 File Upload**: Upload environmental action proofs (images, videos)
+- **🌐 IPFS Storage**: Decentralized file storage with multiple gateway support
+- **⛓️ Blockchain Integration**: Immutable proof storage on Hedera Hashgraph
+- **🏢 NGO Dashboard**: Organization management and proof tracking
+- **🔍 Proof Verification**: Verify proofs on Hedera HashScan explorer
+- **📊 Analytics**: Track impact and proof statistics
 
 ### Technical Stack
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
