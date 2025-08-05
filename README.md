@@ -115,7 +115,7 @@ npm start
 - **Recent Proofs**: Latest proof submissions
 - **Quick Actions**: Direct links to key functions
 
-## 🔧 Configuration 
+## 🔧 Configuration
 
 ### IPFS Setup
 Choose one of the following IPFS providers:
