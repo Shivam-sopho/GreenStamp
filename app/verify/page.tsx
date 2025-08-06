@@ -70,23 +70,29 @@ export default function VerifyPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Verify Proof</h1>
+              <h1 className="text-3xl font-bold text-purple-700">Verify Proof</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Verify environmental action proofs on the Hedera blockchain
+                Verify environmental proofs on the Hedera blockchain
               </p>
             </div>
             <div className="flex space-x-3">
-              <Link
-                href="/submit"
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-              >
-                Submit Proof
+              <Link href="/" className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                🏠 Home
               </Link>
-              <Link
-                href="/proofs"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                View All Proofs
+              <Link href="/submit" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                📤 Submit Proof
+              </Link>
+              <Link href="/dashboard" className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                📊 NGO Dashboard
+              </Link>
+              <Link href="/ngos" className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700">
+                🏢 Manage NGOs
+              </Link>
+              <Link href="/proofs" className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                📋 View All Proofs
+              </Link>
+              <Link href="/sponsor" className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700">
+                🏆 Sponsor Dashboard
               </Link>
             </div>
           </div>

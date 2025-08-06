@@ -44,26 +44,54 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, description, email, website, phone, address } = body;
+    const { name, description, website, email, phone, address, logo } = body;
 
-    if (!name) {
-      return NextResponse.json({ error: 'NGO name is required' }, { status: 400 });
+    if (!name || !description || !email) {
+      return NextResponse.json({
+        error: 'Name, description, and email are required'
+      }, { status: 400 });
     }
+
+    // Create NGO with manual UUID and timestamps
+    const ngoData = {
+      id: crypto.randomUUID(), // Manual UUID generation
+      name,
+      description,
+      website: website || null,
+      email,
+      phone: phone || null,
+      address: address || null,
+      logo: logo || null,
+      totalProofs: 0,
+      totalMembers: 0,
+      totalImpact: 0,
+      isVerified: false,
+      verifiedAt: null,
+      createdAt: new Date().toISOString(), // Explicit timestamp
+      updatedAt: new Date().toISOString(), // Explicit timestamp
+    };
 
     const { data: ngo, error } = await supabase
       .from('NGO')
-      .insert([{ name, description, email, website, phone, address }])
+      .insert([ngoData])
       .select()
       .single();
 
     if (error) {
       console.error('Error creating NGO:', error);
-      return NextResponse.json({ error: 'Failed to create NGO' }, { status: 500 });
+      return NextResponse.json({
+        error: 'Failed to create NGO',
+        details: error.message
+      }, { status: 500 });
     }
 
-    return NextResponse.json({ ngo }, { status: 201 });
+    return NextResponse.json({ ngo });
+
   } catch (error) {
-    console.error('Error creating NGO:', error);
-    return NextResponse.json({ error: 'Failed to create NGO' }, { status: 500 });
+    console.error('Error in NGO creation API:', error);
+    return NextResponse.json({
+      error: 'Failed to create NGO',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 

@@ -114,29 +114,29 @@ export default function SubmitProof() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-green-700">Submit Proof</h1>
+              <h1 className="text-3xl font-bold text-blue-700">Submit Proof</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Upload your environmental action proof to IPFS and Hedera
+                Upload environmental proof to the blockchain
               </p>
             </div>
             <div className="flex space-x-3">
-              <Link
-                href="/"
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-              >
-                Home
+              <Link href="/" className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                🏠 Home
               </Link>
-              <Link
-                href="/dashboard"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Dashboard
+              <Link href="/dashboard" className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                📊 NGO Dashboard
               </Link>
-              <Link
-                href="/proofs"
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-              >
-                View All Proofs
+              <Link href="/ngos" className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700">
+                🏢 Manage NGOs
+              </Link>
+              <Link href="/verify" className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                🔍 Verify Proof
+              </Link>
+              <Link href="/proofs" className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                📋 View All Proofs
+              </Link>
+              <Link href="/sponsor" className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700">
+                🏆 Sponsor Dashboard
               </Link>
             </div>
           </div>
