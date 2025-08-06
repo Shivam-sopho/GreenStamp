@@ -32,9 +32,9 @@ export default function Home() {
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-lg">
-            <div className="text-3xl mb-3">🌟</div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Track Impact</h3>
-            <p className="text-gray-600 text-sm">See your environmental impact score and contribution to sustainability</p>
+            <div className="text-3xl mb-3">🏆</div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Sponsor Dashboard</h3>
+            <p className="text-gray-600 text-sm">Award green badges to eco-actors and recognize their contributions</p>
           </div>
         </div>
 
@@ -52,8 +52,20 @@ export default function Home() {
             View Dashboard
           </Link>
           <Link
-            href="/verify"
+            href="/sponsor"
             className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+          >
+            Sponsor Dashboard
+          </Link>
+          <Link
+            href="/profile"
+            className="bg-orange-600 text-white px-8 py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+          >
+            View Profile
+          </Link>
+          <Link
+            href="/verify"
+            className="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
           >
             Verify Proof
           </Link>
@@ -75,6 +87,7 @@ export default function Home() {
               <p>• IPFS decentralized storage</p>
               <p>• Hedera blockchain verification</p>
               <p>• NGO dashboard & analytics</p>
+              <p>• Green badge recognition system</p>
             </div>
           </div>
           

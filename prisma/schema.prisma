@@ -70,6 +70,7 @@ model User {
   // Relations
   proofs        Proof[]
   ngoMemberships NGOMember[]
+  badges        UserBadge[]
   
   @@index([email])
   @@index([walletAddress])
@@ -141,4 +142,42 @@ model Category {
   updatedAt     DateTime @updatedAt
   
   @@index([name])
+}
+
+model Badge {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  icon          String?  // Emoji or icon
+  color         String?  // CSS color class
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  userBadges    UserBadge[]
+  
+  @@index([name])
+}
+
+model UserBadge {
+  id            String   @id @default(cuid())
+  userId        String
+  badgeId       String
+  awardedAt     DateTime @default(now())
+  awardedBy     String   // Who awarded the badge (sponsor, system, etc.)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge         Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@index([awardedAt])
 }
