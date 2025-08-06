@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { supabaseHelpers, supabase } from "@/lib/supabase";
 
 // GET /api/ngos - List all NGOs
 export async function GET(req: NextRequest) {
@@ -9,56 +9,33 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const verified = searchParams.get('verified');
 
-    const where: any = {};
-    if (verified !== null) {
-      where.isVerified = verified === 'true';
-    }
-
-    const ngos = await prisma.nGO.findMany({
-      where,
-      take: limit,
-      skip: offset,
-      orderBy: {
-        totalProofs: 'desc',
-      },
-      include: {
-        _count: {
-          select: {
-            members: true,
-            proofs: true,
-          },
-        },
-      },
+    const { data: ngos, error } = await supabaseHelpers.getNGOs({
+      limit,
+      offset,
+      verified: verified !== null ? verified === 'true' : undefined,
     });
 
-    const total = await prisma.nGO.count({ where });
+    if (error) {
+      console.error('Error fetching NGOs:', error);
+      return NextResponse.json({ error: 'Failed to fetch NGOs' }, { status: 500 });
+    }
+
+    // Get total count for pagination
+    const { count: total } = await supabase
+      .from('NGO')
+      .select('*', { count: 'exact', head: true });
 
     return NextResponse.json({
-      ngos,
+      ngos: ngos || [],
       pagination: {
-        total,
+        total: total || 0,
         limit,
         offset,
-        hasMore: offset + limit < total,
+        hasMore: offset + limit < (total || 0),
       },
     });
   } catch (error) {
     console.error('Error fetching NGOs:', error);
-    
-    // Return empty array instead of error if database is not available
-    if (error instanceof Error && error.message.includes('Can\'t reach database server')) {
-      console.warn('Database not available, returning empty NGOs array');
-      return NextResponse.json({
-        ngos: [],
-        pagination: {
-          total: 0,
-          limit: 10,
-          offset: 0,
-          hasMore: false,
-        },
-      });
-    }
-    
     return NextResponse.json({ error: 'Failed to fetch NGOs' }, { status: 500 });
   }
 }
@@ -73,16 +50,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'NGO name is required' }, { status: 400 });
     }
 
-    const ngo = await prisma.nGO.create({
-      data: {
-        name,
-        description,
-        email,
-        website,
-        phone,
-        address,
-      },
-    });
+    const { data: ngo, error } = await supabase
+      .from('NGO')
+      .insert([{ name, description, email, website, phone, address }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating NGO:', error);
+      return NextResponse.json({ error: 'Failed to create NGO' }, { status: 500 });
+    }
 
     return NextResponse.json({ ngo }, { status: 201 });
   } catch (error) {

@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { supabaseHelpers, supabase } from "@/lib/supabase";
 
 // GET /api/categories - List all categories
 export async function GET() {
   try {
-    const categories = await prisma.category.findMany({
-      orderBy: {
-        totalProofs: 'desc',
-      },
-    });
+    const { data: categories, error } = await supabaseHelpers.getCategories();
 
-    return NextResponse.json({ categories });
+    if (error) {
+      console.error('Error fetching categories:', error);
+      return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
+    }
+
+    return NextResponse.json({ categories: categories || [] });
   } catch (error) {
     console.error('Error fetching categories:', error);
-    
-    // Return empty array instead of error if database is not available
-    if (error instanceof Error && error.message.includes('Can\'t reach database server')) {
-      console.warn('Database not available, returning empty categories array');
-      return NextResponse.json({ categories: [] });
-    }
-    
     return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
   }
 }
@@ -34,14 +28,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Category name is required' }, { status: 400 });
     }
 
-    const category = await prisma.category.create({
-      data: {
-        name,
-        description,
-        icon,
-        color,
-      },
-    });
+    const { data: category, error } = await supabase
+      .from('Category')
+      .insert([{ name, description, icon, color }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating category:', error);
+      return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+    }
 
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {
