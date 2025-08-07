@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import os from "os";
-import { hederaService, ProofRecord } from "@/lib/hedera";
 import { supabase } from "@/lib/supabase";
-
-interface UploadResponse {
-  success: boolean;
-  cid: string;
-  originalName: string;
-  size: number;
-  type: string;
-  url: string;
-  proofHash: string;
-  topicId?: string;
-  sequenceNumber?: number;
-  blockchainStatus: 'success' | 'failed' | 'not_configured';
-  proofId?: string; // Database ID
-}
+import { aiValidationService } from "@/lib/ai-validation";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,101 +17,143 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Validate file type
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      return NextResponse.json({ error: "Only image and video files are allowed" }, { status: 400 });
+    }
 
-    // Create temporary file
-    const tempPath = path.join(os.tmpdir(), file.name);
-    await writeFile(tempPath, buffer);
+    // Convert file to buffer for AI validation
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
+    // AI Validation (only for images)
+    let aiValidationResult = null;
+    if (file.type.startsWith('image/')) {
+      try {
+        console.log('🔍 Starting AI validation...');
+        aiValidationResult = await aiValidationService.analyzeImage(buffer);
+        console.log('✅ AI validation completed:', {
+          success: aiValidationResult.success,
+          environmentalScore: aiValidationResult.environmentalScore,
+          safetyScore: aiValidationResult.safetyScore,
+          confidence: aiValidationResult.confidence
+        });
+      } catch (error) {
+        console.error('❌ AI validation failed:', error);
+        aiValidationResult = {
+          success: false,
+          confidence: 0,
+          detectedObjects: [],
+          environmentalScore: 0,
+          safetyScore: 0,
+          textContent: [],
+          labels: [],
+          error: 'AI validation failed'
+        };
+      }
+    }
+
+    // Upload to IPFS (using existing logic)
     let cid: string;
     let gatewayUrl: string;
 
     try {
-      // Upload to IPFS using a public gateway (Pinata/Infura)
-      const formDataIPFS = new FormData();
-      formDataIPFS.append('file', new Blob([buffer], { type: file.type }), file.name);
-
-      let response: Response;
-      
+      // Try Pinata first
       if (process.env.PINATA_JWT_TOKEN) {
-        // Use Pinata
-        response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+        const pinataFormData = new FormData();
+        pinataFormData.append('file', file);
+        
+        const pinataResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.PINATA_JWT_TOKEN}`,
+            'Authorization': `Bearer ${process.env.PINATA_JWT_TOKEN}`
           },
-          body: formDataIPFS,
+          body: pinataFormData
         });
-      } else if (process.env.INFURA_PROJECT_ID && process.env.INFURA_API_KEY) {
-        // Use Infura
-        response = await fetch(`https://ipfs.infura.io:5001/api/v0/add`, {
-          method: 'POST',
-          body: formDataIPFS,
-        });
+
+        if (pinataResponse.ok) {
+          const pinataData = await pinataResponse.json();
+          cid = pinataData.IpfsHash;
+          gatewayUrl = `https://gateway.pinata.cloud/ipfs/${cid}`;
+          console.log('📤 Uploaded to Pinata IPFS');
+        } else {
+          throw new Error('Pinata upload failed');
+        }
       } else {
-        throw new Error('No IPFS credentials configured');
+        // Fallback to Infura
+        const infuraFormData = new FormData();
+        infuraFormData.append('file', file);
+        
+        const infuraResponse = await fetch('https://ipfs.infura.io:5001/api/v0/add', {
+          method: 'POST',
+          body: infuraFormData
+        });
+
+        if (infuraResponse.ok) {
+          const infuraData = await infuraResponse.json();
+          cid = infuraData.Hash;
+          gatewayUrl = `https://ipfs.io/ipfs/${cid}`;
+          console.log('📤 Uploaded to Infura IPFS');
+        } else {
+          throw new Error('Infura upload failed');
+        }
       }
-
-      if (!response.ok) {
-        throw new Error(`IPFS upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      cid = result.IpfsHash || result.Hash;
-      gatewayUrl = `https://gateway.pinata.cloud/ipfs/${cid}` || `https://ipfs.io/ipfs/${cid}`;
-
-    } catch (ipfsError) {
-      console.error('IPFS upload failed, falling back to local storage:', ipfsError);
-      
-      // Fallback to local storage
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-      await mkdir(uploadsDir, { recursive: true });
-      
-      const fileName = `${Date.now()}-${file.name}`;
-      const filePath = path.join(uploadsDir, fileName);
-      await writeFile(filePath, buffer);
-      
-      cid = `local-${fileName}`;
-      gatewayUrl = `/uploads/${fileName}`;
+    } catch (error) {
+      console.error('IPFS upload error:', error);
+      return NextResponse.json({ error: "Failed to upload to IPFS" }, { status: 500 });
     }
 
-    // Generate proof hash and store on Hedera
-    const timestamp = Date.now();
-    const proofHash = hederaService.generateProofHash(cid, timestamp, file.name);
-    const proofRecord: ProofRecord = {
-      cid,
-      originalName: file.name,
-      size: file.size,
-      type: file.type,
-      timestamp,
-      proofHash,
-    };
+    // Generate proof hash
+    const proofHash = `proof_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    let blockchainResult: { topicId?: string; sequenceNumber?: number } = {};
+    // Blockchain integration (existing logic)
+    let blockchainResult = { topicId: null, sequenceNumber: null };
     let blockchainStatus: 'success' | 'failed' | 'not_configured' = 'not_configured';
 
-    try {
-      if (process.env.HEDERA_ACCOUNT_ID && process.env.HEDERA_PRIVATE_KEY) {
-        blockchainResult = await hederaService.storeProof(proofRecord);
+    if (process.env.HEDERA_ACCOUNT_ID && process.env.HEDERA_PRIVATE_KEY) {
+      try {
+        const { HederaService } = await import('@/lib/hedera');
+        const hederaService = new HederaService();
+        
+        blockchainResult = await hederaService.storeProof(proofHash, cid);
         blockchainStatus = 'success';
+        console.log('⛓️ Stored on Hedera blockchain');
+      } catch (error) {
+        console.error('Hedera error:', error);
+        blockchainStatus = 'failed';
       }
-    } catch (blockchainError) {
-      console.error('Hedera blockchain error:', blockchainError);
-      blockchainStatus = 'failed';
     }
 
     // Store in database using Supabase client
     let proofId: string | undefined;
     try {
-      // Convert tags to array for PostgreSQL
       const tagsArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
+      const proofUuid = crypto.randomUUID(); // Manual UUID generation
       
-      // Generate a UUID for the proof ID
-      const proofUuid = crypto.randomUUID();
-      
-      // Insert proof using Supabase
+      // Prepare AI validation data
+      const aiValidationData = aiValidationResult ? {
+        aiValidationStatus: aiValidationResult.success ? 'completed' : 'failed',
+        aiConfidenceScore: aiValidationResult.confidence,
+        aiEnvironmentalScore: aiValidationResult.environmentalScore,
+        aiSafetyScore: aiValidationResult.safetyScore,
+        aiDetectedObjects: aiValidationResult.detectedObjects,
+        aiDetectedLabels: aiValidationResult.labels,
+        aiTextContent: aiValidationResult.textContent,
+        aiSuggestedCategory: aiValidationResult.success ? 
+          aiValidationService.getEnvironmentalCategory(aiValidationResult.labels, aiValidationResult.detectedObjects) : null,
+        aiValidationDetails: aiValidationResult
+      } : {
+        aiValidationStatus: 'not_applicable',
+        aiConfidenceScore: null,
+        aiEnvironmentalScore: null,
+        aiSafetyScore: null,
+        aiDetectedObjects: [],
+        aiDetectedLabels: [],
+        aiTextContent: [],
+        aiSuggestedCategory: null,
+        aiValidationDetails: null
+      };
+
       const { data: dbProof, error: proofError } = await supabase
         .from('Proof')
         .insert([{
@@ -150,6 +175,7 @@ export async function POST(req: NextRequest) {
           ngoId: ngoId || null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          ...aiValidationData
         }])
         .select()
         .single();
@@ -157,110 +183,97 @@ export async function POST(req: NextRequest) {
       if (proofError) {
         throw new Error(`Proof insert failed: ${proofError.message}`);
       }
-
       proofId = dbProof.id;
 
-      // Update user stats if userId provided
+      // Update User stats
       if (userId) {
-        // Get current user stats first
-        const { data: currentUser, error: userFetchError } = await supabase
+        const { data: currentUser } = await supabase
           .from('User')
           .select('totalProofs, totalImpact')
           .eq('id', userId)
           .single();
 
-        if (!userFetchError && currentUser) {
-          const { error: userError } = await supabase
+        if (currentUser) {
+          const newTotalProofs = (currentUser.totalProofs || 0) + 1;
+          const newTotalImpact = (currentUser.totalImpact || 0) + (aiValidationResult?.environmentalScore || 10);
+
+          await supabase
             .from('User')
             .update({
-              totalProofs: (currentUser.totalProofs || 0) + 1,
-              totalImpact: (currentUser.totalImpact || 0) + 1,
-              updatedAt: new Date().toISOString(),
+              totalProofs: newTotalProofs,
+              totalImpact: newTotalImpact,
+              updatedAt: new Date().toISOString()
             })
             .eq('id', userId);
-
-          if (userError) {
-            console.error('User stats update failed:', userError);
-          }
-        } else {
-          console.warn(`User with ID ${userId} not found, skipping stats update`);
         }
       }
 
-      // Update NGO stats if ngoId provided
+      // Update NGO stats
       if (ngoId) {
-        // Get current NGO stats first
-        const { data: currentNGO, error: ngoFetchError } = await supabase
+        const { data: currentNGO } = await supabase
           .from('NGO')
           .select('totalProofs, totalImpact')
           .eq('id', ngoId)
           .single();
 
-        if (!ngoFetchError && currentNGO) {
-          const { error: ngoError } = await supabase
+        if (currentNGO) {
+          const newTotalProofs = (currentNGO.totalProofs || 0) + 1;
+          const newTotalImpact = (currentNGO.totalImpact || 0) + (aiValidationResult?.environmentalScore || 10);
+
+          await supabase
             .from('NGO')
             .update({
-              totalProofs: (currentNGO.totalProofs || 0) + 1,
-              totalImpact: (currentNGO.totalImpact || 0) + 1,
-              updatedAt: new Date().toISOString(),
+              totalProofs: newTotalProofs,
+              totalImpact: newTotalImpact,
+              updatedAt: new Date().toISOString()
             })
             .eq('id', ngoId);
-
-          if (ngoError) {
-            console.error('NGO stats update failed:', ngoError);
-          }
-        } else {
-          console.warn(`NGO with ID ${ngoId} not found, skipping stats update`);
         }
       }
 
-      // Update category stats if category provided
+      // Update Category stats
       if (category) {
-        // First try to update existing category
-        const { data: existingCategory, error: categoryCheckError } = await supabase
+        const { data: currentCategory } = await supabase
           .from('Category')
-          .select('id, totalProofs')
+          .select('totalProofs, totalImpact')
           .eq('name', category)
           .single();
 
-        if (existingCategory) {
-          // Update existing category
-          const { error: categoryUpdateError } = await supabase
+        if (currentCategory) {
+          const newTotalProofs = (currentCategory.totalProofs || 0) + 1;
+          const newTotalImpact = (currentCategory.totalImpact || 0) + (aiValidationResult?.environmentalScore || 10);
+
+          await supabase
             .from('Category')
             .update({
-              totalProofs: (existingCategory.totalProofs || 0) + 1,
-              updatedAt: new Date().toISOString(),
+              totalProofs: newTotalProofs,
+              totalImpact: newTotalImpact,
+              updatedAt: new Date().toISOString()
             })
-            .eq('id', existingCategory.id);
-
-          if (categoryUpdateError) {
-            console.error('Category update failed:', categoryUpdateError);
-          }
+            .eq('name', category);
         } else {
-          // Create new category
+          // Create new category if it doesn't exist
           const categoryUuid = crypto.randomUUID();
-          const { error: categoryCreateError } = await supabase
+          await supabase
             .from('Category')
             .insert([{
               id: categoryUuid,
               name: category,
+              description: `Environmental category: ${category}`,
               totalProofs: 1,
+              totalImpact: aiValidationResult?.environmentalScore || 10,
               createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             }]);
-
-          if (categoryCreateError) {
-            console.error('Category creation failed:', categoryCreateError);
-          }
         }
       }
 
     } catch (dbError) {
       console.error('Database error:', dbError);
-      // Continue without database storage if it fails
+      return NextResponse.json({ error: "Failed to store proof in database" }, { status: 500 });
     }
 
-    const uploadResponse: UploadResponse = {
+    return NextResponse.json({
       success: true,
       cid,
       originalName: file.name,
@@ -272,13 +285,22 @@ export async function POST(req: NextRequest) {
       sequenceNumber: blockchainResult.sequenceNumber,
       blockchainStatus,
       proofId,
-    };
+      aiValidation: aiValidationResult ? {
+        status: aiValidationResult.success ? 'completed' : 'failed',
+        environmentalScore: aiValidationResult.environmentalScore,
+        safetyScore: aiValidationResult.safetyScore,
+        confidence: aiValidationResult.confidence,
+        suggestedCategory: aiValidationResult.success ? 
+          aiValidationService.getEnvironmentalCategory(aiValidationResult.labels, aiValidationResult.detectedObjects) : null,
+        detectedObjects: aiValidationResult.detectedObjects.slice(0, 5), // Top 5 objects
+        detectedLabels: aiValidationResult.labels.slice(0, 5), // Top 5 labels
+        isSafe: aiValidationService.isImageSafe(aiValidationResult.safetyScore),
+        isEnvironmentallyRelevant: aiValidationService.isEnvironmentallyRelevant(aiValidationResult.environmentalScore)
+      } : null
+    });
 
-    return NextResponse.json(uploadResponse);
-
-  } catch (err: unknown) {
-    console.error('Upload error:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

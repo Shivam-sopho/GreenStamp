@@ -14,6 +14,17 @@ interface UploadResult {
   sequenceNumber?: number
   blockchainStatus: 'success' | 'failed' | 'not_configured'
   proofId?: string
+  aiValidation?: {
+    status: 'completed' | 'failed' | 'not_applicable'
+    environmentalScore: number
+    safetyScore: number
+    confidence: number
+    suggestedCategory: string | null
+    detectedObjects: string[]
+    detectedLabels: string[]
+    isSafe: boolean
+    isEnvironmentallyRelevant: boolean
+  }
 }
 
 export default function SubmitProof() {
@@ -145,18 +156,18 @@ export default function SubmitProof() {
 
       {/* Main Content */}
       <div className="flex flex-col items-center justify-center p-6">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full"
-        >
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full"
+      >
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select File
             </label>
-            <input
-              type="file"
-              accept="image/*,video/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+        <input
+          type="file"
+          accept="image/*,video/*"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
               className="w-full p-2 border border-gray-300 rounded text-gray-700 bg-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
             />
             {file && (
@@ -255,14 +266,14 @@ export default function SubmitProof() {
             />
           </div>
 
-          <button
-            type="submit"
+        <button
+          type="submit"
             className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={uploading}
-          >
+          disabled={uploading}
+        >
             {uploading ? "Uploading to IPFS & Hedera..." : "Upload Proof"}
-          </button>
-        </form>
+        </button>
+      </form>
 
         {uploadResult && (
           <div className="mt-4 p-4 bg-white rounded-lg shadow-lg max-w-2xl w-full">
@@ -282,12 +293,12 @@ export default function SubmitProof() {
                   )}
                   <a
                     href={uploadResult.url}
-                    target="_blank"
-                    rel="noreferrer"
+            target="_blank"
+            rel="noreferrer"
                     className="text-blue-600 underline hover:text-blue-800 text-sm"
-                  >
-                    View File
-                  </a>
+          >
+            View File
+          </a>
                 </div>
               </div>
 
@@ -344,6 +355,174 @@ export default function SubmitProof() {
                 </div>
                 <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
                   <strong>Direct Link:</strong> <a href={`https://hashscan.io/testnet/topic/${uploadResult.topicId}`} target="_blank" rel="noreferrer" className="underline hover:text-blue-900">https://hashscan.io/testnet/topic/{uploadResult.topicId}</a>
+                </div>
+              </div>
+            )}
+
+            {/* AI Validation Results */}
+            {uploadResult.aiValidation && (
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-3">🤖 AI Image Analysis Results</h4>
+                
+                {/* Validation Status */}
+                <div className="mb-4">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    uploadResult.aiValidation.status === 'completed' 
+                      ? 'bg-green-100 text-green-800' 
+                      : uploadResult.aiValidation.status === 'failed'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {uploadResult.aiValidation.status === 'completed' && '✅ AI Analysis Complete'}
+                    {uploadResult.aiValidation.status === 'failed' && '❌ AI Analysis Failed'}
+                    {uploadResult.aiValidation.status === 'not_applicable' && '⚠️ Not an Image File'}
+                  </span>
+                </div>
+
+                {uploadResult.aiValidation.status === 'completed' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Scores */}
+                    <div className="space-y-3">
+                      <h5 className="font-medium text-blue-800">📊 Analysis Scores</h5>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Environmental Relevance:</span>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  uploadResult.aiValidation.environmentalScore >= 70 ? 'bg-green-500' :
+                                  uploadResult.aiValidation.environmentalScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${uploadResult.aiValidation.environmentalScore}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-medium text-gray-900">
+                              {uploadResult.aiValidation.environmentalScore}%
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Safety Score:</span>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  uploadResult.aiValidation.safetyScore >= 80 ? 'bg-green-500' :
+                                  uploadResult.aiValidation.safetyScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${uploadResult.aiValidation.safetyScore}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-medium text-gray-900">
+                              {uploadResult.aiValidation.safetyScore}%
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">AI Confidence:</span>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  uploadResult.aiValidation.confidence >= 70 ? 'bg-green-500' :
+                                  uploadResult.aiValidation.confidence >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${uploadResult.aiValidation.confidence}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-medium text-gray-900">
+                              {uploadResult.aiValidation.confidence}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Validation Results */}
+                      <div className="pt-2 space-y-2">
+                        <div className="flex items-center space-x-2">
+                          {uploadResult.aiValidation.isEnvironmentallyRelevant ? (
+                            <span className="text-green-600">✅</span>
+                          ) : (
+                            <span className="text-yellow-600">⚠️</span>
+                          )}
+                          <span className="text-sm text-gray-700">
+                            {uploadResult.aiValidation.isEnvironmentallyRelevant 
+                              ? 'Environmentally relevant content detected' 
+                              : 'Limited environmental content detected'
+                            }
+                          </span>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          {uploadResult.aiValidation.isSafe ? (
+                            <span className="text-green-600">✅</span>
+                          ) : (
+                            <span className="text-red-600">❌</span>
+                          )}
+                          <span className="text-sm text-gray-700">
+                            {uploadResult.aiValidation.isSafe 
+                              ? 'Content is safe for environmental platform' 
+                              : 'Content may not be appropriate'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detected Content */}
+                    <div className="space-y-3">
+                      <h5 className="font-medium text-blue-800">🔍 Detected Content</h5>
+                      
+                      {/* Suggested Category */}
+                      {uploadResult.aiValidation.suggestedCategory && (
+                        <div className="mb-3">
+                          <span className="text-sm text-gray-600">AI Suggested Category:</span>
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              🌱 {uploadResult.aiValidation.suggestedCategory.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Detected Objects */}
+                      {uploadResult.aiValidation.detectedObjects.length > 0 && (
+                        <div>
+                          <span className="text-sm text-gray-600">Detected Objects:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {uploadResult.aiValidation.detectedObjects.map((obj, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                📦 {obj}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Detected Labels */}
+                      {uploadResult.aiValidation.detectedLabels.length > 0 && (
+                        <div>
+                          <span className="text-sm text-gray-600">Detected Labels:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {uploadResult.aiValidation.detectedLabels.map((label, index) => (
+                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                🏷️ {label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Validation Info */}
+                <div className="mt-4 p-3 bg-blue-100 rounded text-xs text-blue-800">
+                  <strong>AI Analysis:</strong> This image was analyzed using Google Cloud Vision API to detect environmental content, ensure safety, and suggest relevant categories. The analysis helps maintain platform quality and provides insights about your environmental proof.
                 </div>
               </div>
             )}

@@ -14,39 +14,45 @@ datasource db {
 }
 
 model Proof {
-  id            String   @id @default(cuid())
-  cid           String   // IPFS CID
-  originalName  String   // Original file name
-  size          Int      // File size in bytes
-  type          String   // File MIME type
-  url           String   // IPFS gateway URL
-  proofHash     String   // Unique proof hash
-  topicId       String?  // Hedera topic ID
-  sequenceNumber Int?    // Hedera sequence number
-  blockchainStatus String // 'success' | 'failed' | 'not_configured'
+  id                String   @id @default(cuid())
+  cid               String   @unique
+  originalName      String
+  size              Int
+  type              String
+  url               String
+  proofHash         String   @unique
+  topicId           String?
+  sequenceNumber    Int?
+  blockchainStatus  String   @default("not_configured")
+  title             String?
+  category          String?
+  location          String?
+  tags              String[]
   
-  // Metadata
-  title         String?  // Proof title/description
-  category      String?  // Proof category (tree_planting, beach_cleanup, etc.)
-  location      String?  // GPS coordinates or location name
-  tags          String[] // Array of tags
+  // AI Validation Fields
+  aiValidationStatus    String?   // "pending", "completed", "failed"
+  aiConfidenceScore    Decimal?   @db.Decimal(5,2) // 0.00 to 100.00
+  aiEnvironmentalScore Decimal?   @db.Decimal(5,2) // 0.00 to 100.00
+  aiSafetyScore        Decimal?   @db.Decimal(5,2) // 0.00 to 100.00
+  aiDetectedObjects    String[]   // Array of detected objects
+  aiDetectedLabels     String[]   // Array of detected labels
+  aiTextContent        String[]   // Array of detected text
+  aiSuggestedCategory  String?    // AI-suggested category
+  aiValidationDetails  Json?      // Full validation response
   
-  // User information
-  userId        String?  // User who submitted the proof
-  ngoId         String?  // Associated NGO (if any)
-  
-  // Timestamps
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relations
-  user          User?    @relation(fields: [userId], references: [id])
-  ngo           NGO?     @relation(fields: [ngoId], references: [id])
-  
+  userId            String?
+  ngoId             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User?    @relation(fields: [userId], references: [id])
+  ngo               NGO?     @relation(fields: [ngoId], references: [id])
+
   @@index([userId])
   @@index([ngoId])
   @@index([category])
-  @@index([createdAt])
+  @@index([aiValidationStatus])
+  @@index([aiEnvironmentalScore])
 }
 
 model User {
