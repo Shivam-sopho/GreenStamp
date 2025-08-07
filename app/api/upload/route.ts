@@ -106,6 +106,17 @@ export async function POST(req: NextRequest) {
     // Generate proof hash
     const proofHash = `proof_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    // Create enhanced proof record for blockchain
+    const proofRecord = {
+      cid,
+      originalName: file.name,
+      size: file.size,
+      type: file.type,
+      timestamp: Date.now(),
+      proofHash,
+      action: "PROOF_STORED"
+    };
+
     // Blockchain integration (existing logic)
     let blockchainResult = { topicId: null, sequenceNumber: null };
     let blockchainStatus: 'success' | 'failed' | 'not_configured' = 'not_configured';
@@ -115,9 +126,13 @@ export async function POST(req: NextRequest) {
         const { HederaService } = await import('@/lib/hedera');
         const hederaService = new HederaService();
         
-        blockchainResult = await hederaService.storeProof(proofHash, cid);
+        blockchainResult = await hederaService.storeProof(proofRecord);
         blockchainStatus = 'success';
-        console.log('⛓️ Stored on Hedera blockchain');
+        console.log('⛓️ Stored enhanced proof on Hedera blockchain:', {
+          topicId: blockchainResult.topicId,
+          sequenceNumber: blockchainResult.sequenceNumber,
+          proofData: proofRecord
+        });
       } catch (error) {
         console.error('Hedera error:', error);
         blockchainStatus = 'failed';
@@ -285,6 +300,8 @@ export async function POST(req: NextRequest) {
       sequenceNumber: blockchainResult.sequenceNumber,
       blockchainStatus,
       proofId,
+      // Enhanced blockchain data
+      blockchainProof: blockchainStatus === 'success' ? proofRecord : null,
       aiValidation: aiValidationResult ? {
         status: aiValidationResult.success ? 'completed' : 'failed',
         environmentalScore: aiValidationResult.environmentalScore,

@@ -14,6 +14,15 @@ interface UploadResult {
   sequenceNumber?: number
   blockchainStatus: 'success' | 'failed' | 'not_configured'
   proofId?: string
+  blockchainProof?: {
+    cid: string
+    originalName: string
+    size: number
+    type: string
+    timestamp: number
+    proofHash: string
+    action: string
+  }
   aiValidation?: {
     status: 'completed' | 'failed' | 'not_applicable'
     environmentalScore: number
@@ -322,6 +331,25 @@ export default function SubmitProof() {
               </div>
             </div>
 
+            {/* Enhanced Blockchain Proof Data */}
+            {uploadResult.blockchainProof && (
+              <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                <h4 className="font-semibold text-purple-800 mb-3">🔗 Enhanced Blockchain Proof Data</h4>
+                <p className="text-sm text-purple-700 mb-3">
+                  This complete proof data is now permanently stored on the Hedera blockchain:
+                </p>
+                <div className="bg-white p-3 rounded border border-purple-200">
+                  <pre className="text-xs text-gray-800 overflow-x-auto">
+                    {JSON.stringify(uploadResult.blockchainProof, null, 2)}
+                  </pre>
+                </div>
+                <div className="mt-3 text-xs text-purple-600">
+                  <strong>What this means:</strong> Anyone can now verify your proof on Hedera using this data, 
+                  including the IPFS CID, file details, and timestamp - all immutable and tamper-proof.
+                </div>
+              </div>
+            )}
+
             {/* Blockchain Status Message */}
             {uploadResult.blockchainStatus === 'not_configured' && (
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -352,6 +380,10 @@ export default function SubmitProof() {
                 <div className="mt-4 flex flex-col sm:flex-row gap-3">
                   <button onClick={() => openHederaExplorer(uploadResult.topicId!)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium">🔗 View on HashScan Explorer</button>
                   <a href="/verify" className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm font-medium text-center">📋 Go to Verify Page</a>
+                </div>
+                <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
+                  <strong>Enhanced Verification:</strong> Your proof now includes complete metadata (CID, filename, size, type, timestamp) stored on Hedera. 
+                  Visit HashScan to see the full proof data, not just the hash!
                 </div>
                 <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
                   <strong>Direct Link:</strong> <a href={`https://hashscan.io/testnet/topic/${uploadResult.topicId}`} target="_blank" rel="noreferrer" className="underline hover:text-blue-900">https://hashscan.io/testnet/topic/{uploadResult.topicId}</a>
